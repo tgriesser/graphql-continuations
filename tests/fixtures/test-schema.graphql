@@ -1,0 +1,57 @@
+type Query {
+  node(id: ID!): Node
+  viewer: User
+
+  """Loads remote stats, takes 15 ms to resolve"""
+  remoteStats: RemoteStats
+  continuation(
+    """The maximum amount of time to wait for the body to resolve"""
+    waitMs: Int = 10
+  ): QueryContinuation
+  resolveContinuation(continuationId: String!): ResolveContinuation
+}
+
+interface Node {
+  id: ID!
+}
+
+type User implements Node {
+  id: ID!
+  name: String
+
+  """Loads remote profile, takes 10 ms to resolve"""
+  remoteProfile: UserRemoteProfile
+  friends: [User]
+  continuation(
+    """The maximum amount of time to wait for the body to resolve"""
+    waitMs: Int = 5
+  ): UserContinuation
+}
+
+type UserRemoteProfile {
+  data: String
+  errorField: String
+  testArg(testArg: Int!): Int
+}
+
+"""Union returned when the continuation field is used on the User type"""
+union UserContinuation = User | Continuation
+
+"""
+Represents the eventual result of a selectionSet for a GraphQL Object type
+"""
+type Continuation {
+  continuationId: String!
+}
+
+type RemoteStats {
+  data: String
+  testArg(testArg: Int!): Int
+  errorField: String
+}
+
+"""Union returned when the continuation field is used on the Query type"""
+union QueryContinuation = Query | Continuation
+
+"""Union returned when resolving the result of a continuation"""
+union ResolveContinuation = User | Query
