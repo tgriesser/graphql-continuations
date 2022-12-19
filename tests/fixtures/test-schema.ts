@@ -1,5 +1,4 @@
 import {
-  execute,
   GraphQLFieldConfig,
   GraphQLID,
   GraphQLInt,
@@ -10,23 +9,6 @@ import {
   GraphQLSchema,
   GraphQLString,
 } from "graphql";
-
-import { v4 } from "uuid";
-
-import { continuationField, resolveContinuationField } from "../../src";
-
-const inMemoryCompletions: Record<
-  string,
-  Promise<ReturnType<typeof execute>>
-> = {};
-
-function onContinuation(result) {
-  const continuationId = v4();
-  inMemoryCompletions[continuationId] = Promise.resolve(result).then(
-    (result) => result.data
-  );
-  return continuationId;
-}
 
 const errorField = {
   type: GraphQLString,
@@ -80,23 +62,24 @@ const User = new GraphQLObjectType({
     name: { type: GraphQLString },
     remoteProfile: {
       type: UserRemoteProfile,
-      description: "Loads remote profile, takes 10 ms to resolve",
-      resolve: () => {
+      description: "Loads remote profile, with simulated delay",
+      args: {
+        simulateDelay: {
+          type: GraphQLInt,
+          defaultValue: 100,
+        },
+      },
+      resolve: (source, args) => {
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve({ data: "Remote Profile Data!" });
-          }, 10);
+          }, args.simulateDelay);
         });
       },
     },
     friends: {
       type: new GraphQLList(User),
     },
-    continuation: continuationField({
-      type: User,
-      waitMs: 5,
-      onContinuation,
-    }),
   }),
 });
 
@@ -132,31 +115,24 @@ const Query = new GraphQLObjectType({
     },
     remoteStats: {
       type: RemoteStats,
-      description: "Loads remote stats, takes 15 ms to resolve",
-      resolve: () => {
+      description: "Loads remote stats, with simulated delay",
+      args: {
+        simulateDelay: {
+          type: GraphQLInt,
+          defaultValue: 100,
+        },
+      },
+      resolve: (source, args) => {
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve({ data: "Remote Stats Data!" });
-          }, 15);
+          }, args.simulateDelay);
         });
       },
     },
-    continuation: continuationField({
-      type: Query,
-      onContinuation,
-    }),
-    resolveContinuation: resolveContinuationField({
-      types: () => [User, Query],
-      resolveContinuation(continuationId) {
-        if (!inMemoryCompletions[continuationId]) {
-          throw new Error("Invalid continuationId");
-        }
-        return inMemoryCompletions[continuationId];
-      },
-    }),
   }),
 });
 
-export const schema = new GraphQLSchema({
+export const testSchema = new GraphQLSchema({
   query: Query,
 });

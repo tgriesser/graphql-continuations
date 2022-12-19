@@ -9,21 +9,20 @@ import {
   CONTINUATION_FOR_QUERY_WTIHOUT_TYPENAME,
   RESOLVE_CONTINUATION_FOR_NODE,
   RESOLVE_CONTINUATION_FOR_QUERY,
-} from "./fixtures/query-fixtures";
-import { schema } from "./fixtures/test-schema";
+} from "./fixtures/query-fixtures.js";
+import { testSchema } from "./fixtures/test-schema.js";
+import { addContinuationsToSchema, memoryAdapter } from "../src";
+import { errMsgFromResult, throwIfLongerThanMs } from "./fixtures/utils";
 
 fs.writeFileSync(
   path.join(__dirname, "fixtures/test-schema.graphql"),
-  printSchema(schema) + "\n"
+  printSchema(testSchema) + "\n"
 );
 
-function errMsgFromResult(result: ExecutionResult) {
-  const err = result.errors?.[0];
-  if (err) {
-    console.log(err.stack);
-  }
-  return err?.message;
-}
+const schema = addContinuationsToSchema(testSchema, {
+  adapter: memoryAdapter(),
+  defaultWaitMs: 5,
+});
 
 describe("fixtureSchema", () => {
   it("fetches the continuation for a query with inline fragments", async () => {
@@ -33,13 +32,16 @@ describe("fixtureSchema", () => {
     })) as ExecutionResult<any, any>;
     expect(errMsgFromResult(result)).toBeUndefined();
     expect(result.data.continuation.__typename).toEqual("Continuation");
-    const continuationResult = (await execute({
-      schema,
-      document: RESOLVE_CONTINUATION_FOR_QUERY,
-      variableValues: {
-        continuationId: result.data.continuation.continuationId,
-      },
-    })) as ExecutionResult<any, any>;
+    const continuationResult = (await throwIfLongerThanMs(
+      execute({
+        schema,
+        document: RESOLVE_CONTINUATION_FOR_QUERY,
+        variableValues: {
+          continuationId: result.data.continuation.continuationId,
+        },
+      }),
+      150
+    )) as ExecutionResult<any, any>;
     expect(errMsgFromResult(continuationResult)).toBeUndefined();
     expect(continuationResult.data?.resolveContinuation?.remoteStats).toEqual({
       data: "Remote Stats Data!",

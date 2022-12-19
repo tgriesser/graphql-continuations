@@ -13,8 +13,10 @@ import {
   visit,
   ASTVisitor,
 } from "graphql";
+import { ContinuationFieldOptions } from "./types";
+import { CONTINUATION_TYPE_NAME } from "./constants";
 
-interface FieldDoc {
+export interface FieldDoc {
   isNode: boolean;
   document: DocumentNode;
   targetField?: string;
@@ -28,10 +30,11 @@ const docMap = new WeakMap<FieldNode, FieldDoc>();
  * be raced against the waitMs of the continuation field
  */
 export function makeContinuationQueryDocument(
-  info: GraphQLResolveInfo
+  info: GraphQLResolveInfo,
+  fieldOptions: ContinuationFieldOptions
 ): FieldDoc {
   // If we have already seen this selection node, which happens if a continuation is nested
-  // within a list result, don't worry about re-executing the parse
+  // within a list result (probably not a great idea), don't worry about re-executing the parse
   const selectionNode = info.fieldNodes[0];
   const doc = docMap.get(selectionNode);
   if (doc) {
@@ -63,7 +66,7 @@ export function makeContinuationQueryDocument(
     },
     FragmentSpread(frag) {
       const fragmentDef = info.fragments[frag.name.value];
-      if (fragmentDef.typeCondition.name.value === "Continuation") {
+      if (fragmentDef.typeCondition.name.value === CONTINUATION_TYPE_NAME) {
         return null;
       }
       if (!fragmentNames.has(frag.name.value)) {
@@ -73,7 +76,7 @@ export function makeContinuationQueryDocument(
       }
     },
     InlineFragment(frag) {
-      if (frag.typeCondition?.name.value === "Continuation") {
+      if (frag.typeCondition?.name.value === CONTINUATION_TYPE_NAME) {
         return null;
       }
     },
@@ -109,6 +112,7 @@ export function makeContinuationQueryDocument(
 
   let targetField: string | undefined;
   let isNode = false;
+
   if (info.parentType !== info.schema.getQueryType()) {
     const nodeInterface = info.parentType
       .getInterfaces()

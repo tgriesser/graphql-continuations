@@ -1,0 +1,64 @@
+type Query {
+  node(id: ID!): Node
+  viewer: User
+
+  """Loads remote stats, with simulated delay"""
+  remoteStats(simulateDelay: Int = 100): RemoteStats
+  continuation(
+    """
+    The maximum amount of time to wait for the continuation selections to resolve
+    """
+    waitMs: Int = 10
+  ): QueryContinuation!
+
+  """
+  Given a continuationId, resolves with the completed selection set for the continuation field
+  """
+  resolveContinuation(continuationId: String!): AllContinuationTypes
+}
+
+interface Node {
+  id: ID!
+}
+
+type User implements Node {
+  id: ID!
+  name: String
+
+  """Loads remote profile, with simulated delay"""
+  remoteProfile(simulateDelay: Int = 100): UserRemoteProfile
+  friends: [User]
+  continuation(
+    """
+    The maximum amount of time to wait for the continuation selections to resolve
+    """
+    waitMs: Int = 10
+  ): UserContinuation!
+}
+
+type UserRemoteProfile {
+  data: String
+  errorField: String
+  testArg(testArg: Int!): Int
+}
+
+type RemoteStats {
+  data: String
+  testArg(testArg: Int!): Int
+  errorField: String
+}
+
+type Continuation {
+  continuationId: String!
+}
+
+"""Union returned for the continuation field on the User type"""
+union UserContinuation = Continuation | User
+
+"""
+Union of all types containing a continuation field, used as the result for Query.resolveContinuation
+"""
+union AllContinuationTypes = User | Query
+
+"""Union returned for the continuation field on the Query type"""
+union QueryContinuation = Continuation | Query

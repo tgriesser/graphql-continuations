@@ -2,9 +2,16 @@
 
 A WIP idea around a simpler approach to the problem solved by `@defer`
 
-http://htmlpreview.github.io/?https://github.com/tgriesser/graphql-continuations/blob/main/docs/index.html
+https://htmlpreview.github.io/?https://github.com/tgriesser/graphql-continuations/blob/main/docs/index.html
 
 ```graphql
+fragment ExpensiveUserData on User {
+  id
+  remoteProfile {
+    data
+  }
+}
+
 query QueryWithNestedData {
   viewer {
     id
@@ -14,15 +21,20 @@ query QueryWithNestedData {
       ... on Continuation {
         continuationId
       }
-      ... on User {
-        id
-        remoteProfile {
-          data
-        }
-      }
+      ...ExpensiveUserData
     }
   }
 }
+
+query ResolveUserData($cid: String!) {
+  resolveContinuation(continuationId: $cid) {
+    ...ExpensiveUserData
+  }
+}
 ```
+
+TODO:
+
+Proper field level configuration
 
 Feedback welcome!
