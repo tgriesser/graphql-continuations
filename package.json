@@ -1,7 +1,7 @@
 {
   "name": "graphql-continuations",
   "version": "0.1.0",
-  "description": "",
+  "description": "An alternative approach to @defer in resolving expensive GraphQL fields",
   "main": "./cjs/index.js",
   "scripts": {
     "clean": "rm -rf cjs && rm -rf mjs",
@@ -9,7 +9,7 @@
     "build:mjs": "tsc -p tsconfig.mjs.json",
     "build:cjs": "tsc -p tsconfig.json",
     "test": "vitest",
-    "prepublish": "tsc",
+    "prepublish": "pnpm build",
     "coverage": "vitest run --coverage",
     "watch": "nodemon --exec \"spec-md > ./docs/index.html\" ./spec/spec.md"
   },
@@ -30,7 +30,10 @@
     "mjs/*",
     "cjs/*"
   ],
-  "keywords": [],
+  "keywords": [
+    "graphql",
+    "defer"
+  ],
   "author": "Tim Griesser",
   "license": "MIT",
   "dependencies": {
