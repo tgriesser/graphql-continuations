@@ -7,7 +7,7 @@ import {
 import { isPromiseLike } from "./jsutils.js";
 import { makeContinuationQueryDocument } from "./makeContinuationQueryDocument.js";
 import { interleaveErrors, removeFieldFromErrorPath } from "./errorHandling.js";
-import { ContinuationFieldOptions, ContinuationConfig } from "./types.js";
+import type { ContinuationFieldOptions, ContinuationConfig } from "./types.js";
 import {
   setWithinContinuation,
   withinContinuationField,

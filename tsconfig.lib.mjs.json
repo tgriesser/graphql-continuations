@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "compilerOptions": {
+    "outDir": "mjs",
+    "module": "ESNext",
+    "moduleResolution": "NodeNext"
+  }
+}

@@ -1,4 +1,4 @@
-import { ExecutionResult } from "graphql";
+import type { ExecutionResult } from "graphql";
 
 export function errMsgFromResult(result: ExecutionResult) {
   const err = result.errors?.[0];

@@ -12,7 +12,7 @@ import {
 
 const errorField = {
   type: GraphQLString,
-  resolve: (source) => {
+  resolve: () => {
     return new Error("Error Field Test");
   },
 };
@@ -24,7 +24,7 @@ const testArg = {
       type: new GraphQLNonNull(GraphQLInt),
     },
   },
-  resolve: (source, args) => {
+  resolve: (_source: any, args: { testArg: number }) => {
     return args.testArg;
   },
 };
@@ -58,7 +58,7 @@ class UserShape {
   constructor(readonly id: number, readonly name: string) {}
 }
 
-const User = new GraphQLObjectType({
+const User: GraphQLObjectType = new GraphQLObjectType({
   name: "User",
   interfaces: () => [Node],
   isTypeOf: (o) => o instanceof UserShape,

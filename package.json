@@ -4,10 +4,10 @@
   "description": "An alternative approach to @defer in resolving expensive GraphQL fields",
   "main": "./cjs/index.js",
   "scripts": {
-    "clean": "rm -rf cjs && rm -rf mjs",
-    "build": "pnpm clean && pnpm build:mjs && pnpm build:cjs",
-    "build:mjs": "tsc -p tsconfig.mjs.json",
-    "build:cjs": "tsc -p tsconfig.json",
+    "clean": "rm -rf cjs && rm -rf mjs && rm -rf client-cjs && rm -rf client-mjs && rm -rf {src,tests,client}/{**/*,*}.{d.ts,js}",
+    "build": "pnpm clean && pnpm build:main && pnpm build:client",
+    "build:main": "tsc -p tsconfig.lib.json && tsc -p tsconfig.lib.mjs.json",
+    "build:client": "tsc -p tsconfig.client.json && tsc -p tsconfig.client.mjs.json",
     "test": "vitest",
     "prepublish": "pnpm build",
     "coverage": "vitest run --coverage",
@@ -22,6 +22,16 @@
       "require": {
         "types": "./cjs/index.d.ts",
         "default": "./cjs/index.js"
+      }
+    },
+    "./client/react": {
+      "import": {
+        "types": "./mjs-client/react/useContinuation.d.ts",
+        "default": "./mjs-client/react/useContinuation.js"
+      },
+      "require": {
+        "types": "./cjs-client/react/useContinuation.d.ts",
+        "default": "./cjs-client/react/useContinuation.js"
       }
     }
   },
@@ -43,12 +53,15 @@
     "graphql": "*"
   },
   "devDependencies": {
+    "@types/react": "^18.0.26",
     "@types/uuid": "^9.0.0",
     "graphql": "^16.6.0",
     "graphql-tag": "^2.12.6",
-    "nodemon": "^2.0.20",
-    "spec-md": "^3.0.2",
     "ioredis": "^5.2.4",
+    "nodemon": "^2.0.20",
+    "react": "^18.2.0",
+    "react-router": "^6.5.0",
+    "spec-md": "^3.0.2",
     "typescript": "^4.9.4",
     "vitest": "^0.25.7"
   }

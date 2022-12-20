@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "tests",
+    "vitest.config.ts",
+    "src",
+    "example",
+    "client-cjs",
+    "client-mjs",
+    "cjs",
+    "mjs"
+  ],
+  "compilerOptions": {
+    "rootDir": "client",
+    "outDir": "client-cjs",
+    "noEmit": false
+  }
+}

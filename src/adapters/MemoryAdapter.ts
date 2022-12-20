@@ -1,4 +1,4 @@
-import { GraphQLResolveInfo, execute } from "graphql";
+import type { GraphQLResolveInfo, execute } from "graphql";
 import {
   BaseAdapter,
   ContinuationID,
@@ -42,7 +42,13 @@ export class MemoryAdapter<Context = any> extends BaseAdapter {
     if (!result) {
       throw new ContinuationNotFoundError(continuationId);
     }
-    return result;
+    return Promise.resolve(result).then((data) => {
+      // Deletes the data on the server after 10 seconds
+      setTimeout(() => {
+        this.inMemoryCompletions.delete(continuationId);
+      }, 60 * 10);
+      return data;
+    });
   }
 }
 

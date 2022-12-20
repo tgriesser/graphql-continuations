@@ -1,7 +1,7 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig.client.json",
   "compilerOptions": {
-    "outDir": "mjs",
+    "outDir": "client-mjs",
     "module": "ESNext",
     "moduleResolution": "NodeNext"
   }

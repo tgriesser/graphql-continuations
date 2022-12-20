@@ -13,7 +13,7 @@ import {
   visit,
   ASTVisitor,
 } from "graphql";
-import { ContinuationFieldOptions } from "./types";
+import type { ContinuationFieldOptions } from "./types";
 import { CONTINUATION_TYPE_NAME } from "./constants";
 
 export interface FieldDoc {

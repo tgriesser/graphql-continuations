@@ -1,5 +1,5 @@
-import { GraphQLFieldResolver } from "graphql";
-import { ContinuationConfig } from "./types.js";
+import type { GraphQLFieldResolver } from "graphql";
+import type { ContinuationConfig } from "./types.js";
 import { interleaveErrors } from "./errorHandling.js";
 import { markWrapped } from "./wrapExistingResolver.js";
 import { setWithinContinuation } from "./withinContinuation.js";

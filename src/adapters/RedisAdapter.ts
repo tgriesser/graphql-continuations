@@ -1,4 +1,4 @@
-import {
+import type {
   ExecutionResult,
   FormattedExecutionResult,
   GraphQLResolveInfo,
@@ -17,6 +17,26 @@ type Callback<T = any> = (err?: Error | null, result?: T) => void;
 
 export type MaybeCtxFn<Context, T> = ((ctx: Context) => T) | T;
 
+interface Expires {
+  /**
+   * How long we keep a "pending" flag in memory, in seconds
+   * @default 10 minutes
+   */
+  pendingFlag?: number;
+  /**
+   * How long we keep a value in memory, after it has been
+   * completed
+   * @default 10 minutes
+   */
+  completedValue?: number;
+  /**
+   * How long we keep a value in memory, after it has been
+   * retrieved
+   * @default 1 minute
+   */
+  retrievedValue?: number;
+}
+
 export interface ContinuationRedisAdapterConfig<Context> {
   /**
    * Prefix for the key in Redis, default gqlc:
@@ -30,6 +50,7 @@ export interface ContinuationRedisAdapterConfig<Context> {
     {
       del(key: string): Promise<any>;
       get(key: string): Promise<string | null>;
+      expire(key: string, seconds: number): Promise<number>;
       setex(key: string, expire: number, value: string): Promise<"OK">;
       exists(key: string): Promise<number>;
       publish(nsp: string, evt: string): Promise<number>;
@@ -54,7 +75,7 @@ export interface ContinuationRedisAdapterConfig<Context> {
     }
   >;
   /**
-   * If there's an unhandled error when writing
+   * If there's an unhandled IORedis error when subscribing/unsubscribing
    */
   onError?: (e: Error) => any;
   /**
@@ -63,13 +84,22 @@ export interface ContinuationRedisAdapterConfig<Context> {
   authorize?: (
     ...args: ResolveContinuationArgs<{ continuationId: string }, Context>
   ) => boolean;
+  /**
+   * Sets the "expires" times for the payloads set in redis
+   */
+  expires?: Expires;
 }
 
-const ONE_HOUR_SEC = 60 * 60;
-
 class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
+  #expires: Required<Expires>;
+
   constructor(private config: ContinuationRedisAdapterConfig<Context>) {
     super();
+    this.#expires = {
+      pendingFlag: config.expires?.pendingFlag ?? 60 * 10, // 10 min
+      completedValue: config.expires?.completedValue ?? 60 * 10,
+      retrievedValue: config.expires?.retrievedValue ?? 60, // 1 min
+    };
   }
 
   onUnhandledError = (e: Error) => {
@@ -80,7 +110,7 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     }
   };
 
-  private key(continuationId: ContinuationID, type?: ":pending") {
+  #key(continuationId: ContinuationID, type?: ":pending") {
     return `${this.config.keyPrefix ?? "gqlc:"}${continuationId}${type ?? ""}`;
   }
 
@@ -93,7 +123,7 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     ctx: Context,
     info: GraphQLResolveInfo
   ) {
-    return Boolean(await this.#client(ctx).exists(this.key(continuationId)));
+    return Boolean(await this.#client(ctx).exists(this.#key(continuationId)));
   }
 
   /**
@@ -106,18 +136,18 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     const continuationId = this.generateId();
     const [promiseResult, source, args, ctx, info] = storeResultArgs;
     await this.#client(ctx).setex(
-      this.key(continuationId, ":pending"),
-      ONE_HOUR_SEC,
+      this.#key(continuationId, ":pending"),
+      this.#expires.pendingFlag,
       new Date().toISOString()
     );
 
     promiseResult
       .then(async (result) => {
         await Promise.all([
-          this.#client(ctx).del(this.key(continuationId, ":pending")),
+          this.#client(ctx).del(this.#key(continuationId, ":pending")),
           this.#client(ctx).setex(
-            this.key(continuationId),
-            ONE_HOUR_SEC,
+            this.#key(continuationId),
+            this.#expires.retrievedValue,
             this.serializeResult(result)
           ),
         ]);
@@ -143,7 +173,7 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     return new Promise<FormattedExecutionResult>(async (resolve, reject) => {
       try {
         const isPending = await this.#client(ctx).exists(
-          this.key(continuationId, ":pending")
+          this.#key(continuationId, ":pending")
         );
         if (isPending) {
           await this.#subscribeAndWait(resolveResultArgs, resolve, reject);
@@ -174,10 +204,13 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     resolveResultArgs: ResolveContinuationArgs<{ continuationId: string }>
   ) {
     const [_source, { continuationId }, ctx] = resolveResultArgs;
-    const result = await this.#client(ctx).get(this.key(continuationId));
+    const result = await this.#client(ctx).get(this.#key(continuationId));
     if (!result) {
       throw new ContinuationNotFoundError(continuationId);
     }
+    this.#client(ctx)
+      .expire(this.#key(continuationId), this.#expires.retrievedValue)
+      .catch((e) => this.onUnhandledError(e));
     return this.deserializeResult(result);
   }
 
@@ -208,7 +241,7 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     // We're pretty sure at this point that we don't have a result,
     // but let's add one additional check to be sure we didn't hit
     // some race condition and start awaiting forever
-    if (await this.#client(ctx).exists(this.key(continuationId))) {
+    if (await this.#client(ctx).exists(this.#key(continuationId))) {
       onContinuationId(`${PUB_SUB_NSP}:${continuationId}`);
     }
   }

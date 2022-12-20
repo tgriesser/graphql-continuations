@@ -2,3 +2,9 @@ node_modules
 dist
 mjs
 cjs
+client-mjs
+client-cjs
+src/**/*.js
+src/**/*.d.ts
+tests/**/*.js
+tests/**/*.d.ts

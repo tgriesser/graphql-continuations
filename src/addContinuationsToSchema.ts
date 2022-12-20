@@ -8,7 +8,7 @@ import {
   isObjectType,
   parse,
 } from "graphql";
-import { ContinuationConfig } from "./types.js";
+import type { ContinuationConfig } from "./types.js";
 import {
   wrapExistingResolvers,
   wrapExistingResolveType,

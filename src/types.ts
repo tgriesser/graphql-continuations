@@ -1,5 +1,5 @@
-import { GraphQLResolveInfo, execute } from "graphql";
-import { BaseAdapter } from "./adapters/BaseAdapter.js";
+import type { GraphQLResolveInfo, execute } from "graphql";
+import type { BaseAdapter } from "./adapters/BaseAdapter.js";
 
 export interface ContinuationFieldOptions<Context = any> {
   /**
