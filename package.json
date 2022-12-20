@@ -24,12 +24,7 @@
         "default": "./cjs/index.js"
       }
     },
-    "./react": {
-      "require": {
-        "types": "./react/index.d.ts",
-        "default": "./react/index.js"
-      }
-    }
+    "./react": "./react/index.js"
   },
   "types": "./cjs/index.d.ts",
   "files": [
