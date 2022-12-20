@@ -38,7 +38,9 @@
   "types": "./cjs/index.d.ts",
   "files": [
     "mjs/*",
-    "cjs/*"
+    "client-mjs/*",
+    "cjs/*",
+    "client-cjs/*"
   ],
   "keywords": [
     "graphql",
