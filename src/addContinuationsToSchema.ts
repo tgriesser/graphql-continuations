@@ -3,12 +3,16 @@ import {
   assertObjectType,
   extendSchema,
   getNamedType,
+  isAbstractType,
   isInterfaceType,
   isObjectType,
   parse,
 } from "graphql";
 import { ContinuationConfig } from "./types.js";
-import { wrapExistingResolvers } from "./wrapExistingResolver.js";
+import {
+  wrapExistingResolvers,
+  wrapExistingResolveType,
+} from "./wrapExistingResolver.js";
 import { makeContinuationFieldResolver } from "./makeContinuationFieldResolver.js";
 import { makeResolveContinuationResolver } from "./makeResolveContinuationResolver.js";
 
@@ -100,6 +104,9 @@ export function addContinuationsToSchema<Context>(
           typeConfig
         );
       }
+    }
+    if (isAbstractType(type)) {
+      wrapExistingResolveType(type);
     }
   }
 
