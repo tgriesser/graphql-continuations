@@ -26,12 +26,12 @@
     },
     "./client/react": {
       "import": {
-        "types": "./mjs-client/react/useContinuation.d.ts",
-        "default": "./mjs-client/react/useContinuation.js"
+        "types": "./client-mjs/react/index.d.ts",
+        "default": "./client-mjs/react/index.js"
       },
       "require": {
-        "types": "./cjs-client/react/useContinuation.d.ts",
-        "default": "./cjs-client/react/useContinuation.js"
+        "types": "./client-cjs/react/index.d.ts",
+        "default": "./client-cjs/react/index.js"
       }
     }
   },
