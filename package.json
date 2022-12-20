@@ -4,10 +4,10 @@
   "description": "An alternative approach to @defer in resolving expensive GraphQL fields",
   "main": "./cjs/index.js",
   "scripts": {
-    "clean": "rm -rf cjs && rm -rf mjs && rm -rf client-cjs && rm -rf client-mjs && rm -rf {src,tests,client}/{**/*,*}.{d.ts,js}",
+    "clean": "rm -rf cjs && rm -rf mjs && rm -rf react && rm -rf {src,tests,client}/{**/*,*}.{d.ts,js}",
     "build": "pnpm clean && pnpm build:main && pnpm build:client",
     "build:main": "tsc -p tsconfig.lib.json && tsc -p tsconfig.lib.mjs.json",
-    "build:client": "tsc -p tsconfig.client.json && tsc -p tsconfig.client.mjs.json",
+    "build:client": "tsc -p tsconfig.client.json",
     "test": "vitest",
     "prepublish": "pnpm build",
     "coverage": "vitest run --coverage",
@@ -24,23 +24,18 @@
         "default": "./cjs/index.js"
       }
     },
-    "./client/react": {
-      "import": {
-        "types": "./client-mjs/react/index.d.ts",
-        "default": "./client-mjs/react/index.js"
-      },
+    "./react": {
       "require": {
-        "types": "./client-cjs/react/index.d.ts",
-        "default": "./client-cjs/react/index.js"
+        "types": "./react/index.d.ts",
+        "default": "./react/index.js"
       }
     }
   },
   "types": "./cjs/index.d.ts",
   "files": [
     "mjs/*",
-    "client-mjs/*",
-    "cjs/*",
-    "client-cjs/*"
+    "react/*",
+    "cjs/*"
   ],
   "keywords": [
     "graphql",

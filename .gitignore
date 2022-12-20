@@ -8,3 +8,4 @@ src/**/*.js
 src/**/*.d.ts
 tests/**/*.js
 tests/**/*.d.ts
+react/**

@@ -1,7 +1,18 @@
 ## graphql-continuations/client
 
-Contains reference adapters for popular frameworks
+Contains reference adapters for popular frameworks:
 
-```ts
-import { useContinuation } from "graphql-continuations/client/react";
+```tsx
+import {
+  useContinuation,
+  ContinuationCacheProvider,
+} from "graphql-continuations/react";
+
+function App() {
+  return (
+    <ContinuationCacheProvider>
+      <ComponentWithUseContinuation />
+    </ContinuationCacheProvider>
+  );
+}
 ```

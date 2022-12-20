@@ -5,8 +5,7 @@
     "vitest.config.ts",
     "client",
     "example",
-    "client-cjs",
-    "client-mjs",
+    "react",
     "cjs",
     "mjs"
   ],

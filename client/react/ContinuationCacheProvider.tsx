@@ -1,4 +1,3 @@
-import * as React from "react";
 import { createContext, useReducer } from "react";
 import type { ContinuationErrors } from "./useContinuation";
 

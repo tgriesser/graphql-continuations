@@ -5,14 +5,13 @@
     "vitest.config.ts",
     "src",
     "example",
-    "client-cjs",
-    "client-mjs",
+    "react",
     "cjs",
     "mjs"
   ],
   "compilerOptions": {
-    "rootDir": "client",
-    "outDir": "client-cjs",
+    "rootDir": "client/react",
+    "outDir": "react",
     "noEmit": false
   }
 }
