@@ -1,8 +1,13 @@
 import {
   GraphQLFieldResolver,
   GraphQLInterfaceType,
+  GraphQLIsTypeOfFn,
   GraphQLObjectType,
+  GraphQLResolveInfo,
+  GraphQLUnionType,
   defaultFieldResolver,
+  defaultTypeResolver,
+  isObjectType,
 } from "graphql";
 import { withinContinuationField } from "./withinContinuation.js";
 import { RESOLVER_SYMBOL } from "./constants.js";
@@ -22,6 +27,24 @@ export function wrapExistingResolver<Source, Args, Context>(
     return resolve(source, args, ctx, info);
   });
 }
+
+/**
+ * Wraps the isTypeOf on individual objects, if we know we're within the context of an
+ * execution result, we just need to check whether the shape matches what we'd expect
+ * for the __typename in the resolver
+ */
+export function wrapExistingIsTypeOf(
+  typeName: string,
+  isTypeOf: GraphQLIsTypeOfFn<any, any>
+): GraphQLIsTypeOfFn<any, any> {
+  return (source: any, context: any, info: GraphQLResolveInfo) => {
+    if (withinContinuationField(info)) {
+      return source.__typename === typeName;
+    }
+    return isTypeOf(source, context, info);
+  };
+}
+
 /**
  * Wraps a field resolver with a guard, preventing it from executing
  * the resolve if it knows it's executing for a fulfilled result of a
@@ -35,6 +58,26 @@ export function wrapExistingResolvers(
     if (shouldWrapResolve(fieldDef.resolve)) {
       fieldDef.resolve = wrapExistingResolver(fieldDef.resolve);
     }
+  }
+  if (isObjectType(obj) && typeof obj.isTypeOf === "function") {
+    obj.isTypeOf = wrapExistingIsTypeOf(obj.name, obj.isTypeOf);
+  }
+}
+
+export function wrapExistingResolveType(
+  type: GraphQLInterfaceType | GraphQLUnionType
+) {
+  const resolveType = type.resolveType;
+  if (
+    typeof resolveType === "function" &&
+    resolveType !== defaultTypeResolver
+  ) {
+    type.resolveType = (value, context, info, abstractType) => {
+      if (withinContinuationField(info)) {
+        return defaultTypeResolver(value, context, info, abstractType);
+      }
+      return resolveType(value, context, info, abstractType);
+    };
   }
 }
 

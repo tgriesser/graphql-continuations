@@ -54,9 +54,14 @@ const UserRemoteProfile = new GraphQLObjectType({
   },
 });
 
+class UserShape {
+  constructor(readonly id: number, readonly name: string) {}
+}
+
 const User = new GraphQLObjectType({
   name: "User",
   interfaces: () => [Node],
+  isTypeOf: (o) => o instanceof UserShape,
   fields: () => ({
     id: idField,
     name: { type: GraphQLString },
@@ -106,12 +111,15 @@ const Query = new GraphQLObjectType({
       },
       resolve: (source, args, ctx, info) => {
         const [__typename, id] = args.id.split(":");
+        if (__typename === "User") {
+          return new UserShape(Number(id), "Example User");
+        }
         return { __typename, id };
       },
     },
     viewer: {
       type: User,
-      resolve: () => ({ id: 1, name: "Example User" }),
+      resolve: () => new UserShape(1, "Example User"),
     },
     remoteStats: {
       type: RemoteStats,

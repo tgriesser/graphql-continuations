@@ -23,6 +23,10 @@ export interface FieldDoc {
   variableNames: string[];
 }
 
+const TYPENAME_FIELD = fieldNode({
+  name: nameNode("__typename"),
+});
+
 const docMap = new WeakMap<FieldNode, FieldDoc>();
 
 /**
@@ -54,16 +58,28 @@ export function makeContinuationQueryDocument(
   const variableNames = new Set<string>();
   const variableDefinitions: VariableDefinitionNode[] = [];
 
-  let hasTypename = false;
+  function addTypename(node: FragmentDefinitionNode | FieldNode) {
+    if (
+      node.selectionSet &&
+      !node.selectionSet.selections.some(
+        (s) => s.kind === Kind.FIELD && s.name.value === "__typename"
+      )
+    ) {
+      node.selectionSet.selections =
+        node.selectionSet.selections.concat(TYPENAME_FIELD);
+    }
+  }
 
   // Find all of the "Continuation" fragments and strip those out of the second query we execute,
   // making sure to detect any variables in the selectionSet to re-define those in the new query
   const visitor: ASTVisitor = {
-    Field(node, key, parent, path) {
-      if (node.name.value === "__typename" && path.length === 2) {
-        hasTypename = true;
-      }
-    },
+    FragmentDefinition: addTypename,
+
+    // We need to ensure we know the __typename when resolving the
+    // fields below continuation, even if it's not provided so we don't need
+    // to define isTypeOf for the union type
+    Field: addTypename,
+
     FragmentSpread(frag) {
       const fragmentDef = info.fragments[frag.name.value];
       if (fragmentDef.typeCondition.name.value === CONTINUATION_TYPE_NAME) {
@@ -97,18 +113,6 @@ export function makeContinuationQueryDocument(
   };
 
   let docSelectionSet = visit(selectionSet, visitor);
-
-  if (!hasTypename) {
-    // We need to ensure we know the __typename when resolving the
-    // fields below continuation, even if it's not provided so we don't need
-    // to define isTypeOf for the union type
-    docSelectionSet.selections = [
-      fieldNode({
-        name: nameNode("__typename"),
-      }),
-      ...docSelectionSet.selections,
-    ];
-  }
 
   let targetField: string | undefined;
   let isNode = false;

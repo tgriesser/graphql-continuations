@@ -62,6 +62,7 @@ describe("fixtureSchema", () => {
           "continuation": {
             "__typename": "Query",
             "remoteStats": {
+              "__typename": "RemoteStats",
               "data": "Remote Stats Data!",
             },
           },
