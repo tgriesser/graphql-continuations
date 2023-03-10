@@ -69,16 +69,24 @@ const User: GraphQLObjectType = new GraphQLObjectType({
       type: UserRemoteProfile,
       description: "Loads remote profile, with simulated delay",
       args: {
-        simulateDelay: {
-          type: GraphQLInt,
+        simulateDelayMin: {
+          type: new GraphQLNonNull(GraphQLInt),
           defaultValue: 100,
+        },
+        simulateDelayMax: {
+          type: new GraphQLNonNull(GraphQLInt),
+          defaultValue: 2000,
         },
       },
       resolve: (source, args) => {
+        const toWait = Math.max(
+          args.simulateDelayMin,
+          Math.random() * args.simulateDelayMax
+        );
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve({ data: "Remote Profile Data!" });
-          }, args.simulateDelay);
+          }, toWait);
         });
       },
     },
@@ -120,6 +128,13 @@ const Query = new GraphQLObjectType({
     viewer: {
       type: User,
       resolve: () => new UserShape(1, "Example User"),
+    },
+    userList: {
+      type: new GraphQLList(User),
+      resolve: () =>
+        new Array(10)
+          .fill(1)
+          .map((_, idx) => new UserShape(idx, `Example User ${idx}`)),
     },
     remoteStats: {
       type: RemoteStats,

@@ -1,6 +1,6 @@
-import { BaseAdapter } from "./BaseAdapter";
-import { memoryAdapter } from "./MemoryAdapter";
-import { redisAdapter } from "./RedisAdapter";
+import { BaseAdapter } from "./BaseAdapter.js";
+import { memoryAdapter } from "./MemoryAdapter.js";
+import { redisAdapter } from "./RedisAdapter.js";
 
 import type { ContinuationRedisAdapterConfig } from "./RedisAdapter";
 

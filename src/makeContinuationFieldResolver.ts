@@ -112,8 +112,7 @@ async function maybeResolveNestedContination<Context>(
   ) {
     const hasResult = await config.adapter.hasResult(
       source.continuationId,
-      source,
-      info
+      source
     );
     if (hasResult) {
       return config.adapter.resolveResult(

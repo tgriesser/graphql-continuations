@@ -1,6 +1,7 @@
 type Query {
   node(id: ID!): Node
   viewer: User
+  userList: [User]
 
   """Loads remote stats, with simulated delay"""
   remoteStats(simulateDelay: Int = 100): RemoteStats
@@ -15,7 +16,7 @@ type User implements Node {
   name: String
 
   """Loads remote profile, with simulated delay"""
-  remoteProfile(simulateDelay: Int = 100): UserRemoteProfile
+  remoteProfile(simulateDelayMin: Int! = 100, simulateDelayMax: Int! = 2000): UserRemoteProfile
   friends: [User]
 }
 

@@ -217,7 +217,7 @@ function PostComponent({ id }) {
 }
 
 function PostStatsComponent(post) {
-  const { isLoading, data } = useContinuationResult(
+  const { isLoading, data } = useContinuation(
     "ResolvePostPageContinuation",
     post.continuation
   );
@@ -225,9 +225,9 @@ function PostStatsComponent(post) {
   return <div>{JSON.stringify(data, null, 2)}</div>;
 }
 
-// Again, pseduocode, giving an example of how a useContinuationResult hook might work in a client
+// Again, pseduocode, giving an example of how a useContinuation hook might work in a client
 // to refetch:
-function useContinuationResult(operation, obj) {
+function useContinuation(operation, obj) {
   const [isLoading, setIsLoading] = useState(obj.__typename !== "Continuation");
   const [continuationData, setContinuationData] = useState(
     obj.__typename !== "Continuation" ? obj : null

@@ -1,47 +1,35 @@
 import type { FormattedExecutionResult } from "graphql";
 import { useEffect, useCallback, useState, useRef, useContext } from "react";
 import { ContinuationCache } from "./ContinuationCacheProvider";
+import type {
+  ContinuationErrors,
+  ContinuationResult,
+  ContinuationIdShape,
+  OperationRequestBody,
+} from "./common";
 
-export type ContinuationErrors =
-  | Exclude<FormattedExecutionResult["errors"], undefined>
-  | Error[];
-
-export type ContinuationResult<C> =
-  | {
-      loading: false;
-      data: Exclude<C, { __typename?: "Continuation" }>;
-      errors: null | ContinuationErrors;
-    }
-  | {
-      loading: true;
-      data: Extract<C, { __typename?: "Continuation" }>;
-      errors: null | ContinuationErrors;
-    }
-  | {
-      loading: false;
-      data: null;
-      errors: ContinuationErrors;
-    };
-
-export interface ContinuationFetchBody {
-  query: string;
-  operationName?: string;
-  variables?: Record<string, any>;
-  [key: string]: any;
+/**
+ * @deprecated useContinuationQuery should be used instead
+ */
+export function useContinuation<
+  D extends object,
+  C extends { __typename: "Continuation"; continuationId: string } | D
+>(continuationOrData: C, operationBody: OperationRequestBody) {
+  console.error(
+    new Error(`useContinuation is deprecated, useContinuationQuery instead`)
+  );
+  return useContinuationQuery(continuationOrData, operationBody);
 }
 
-export function useContinuation<
-  C extends { __typename?: "Continuation" | string; continuationId?: string }
->(
-  continuationOrData: C,
-  operationBody: ContinuationFetchBody,
-  fetchOptions?: Partial<RequestInit>
-): ContinuationResult<C> {
-  const continuationId =
-    continuationOrData.__typename === "Continuation"
-      ? continuationOrData.continuationId
-      : null;
-
+/**
+ * @returns
+ */
+export function useContinuationQuery<D>(
+  continuationOrData:
+    | ContinuationIdShape
+    | (D & { __typename?: string; continuationId?: never }),
+  operationBody: OperationRequestBody
+): ContinuationResult<D> {
   const ctx = useContext(ContinuationCache);
   if (!ctx) {
     throw new Error(
@@ -49,19 +37,24 @@ export function useContinuation<
     );
   }
 
+  const continuationId =
+    "__typename" in continuationOrData &&
+    continuationOrData.__typename === "Continuation"
+      ? continuationOrData.continuationId
+      : null;
+
   const cachedValue = continuationId ? ctx.state[continuationId] : null;
-  const fetcher = ctx.fetcher ?? fetch;
-  const apiEndpoint = ctx.apiEndpoint ?? "/graphql";
-  const addResult = ctx.addResult;
+  const { addResult, formatRequestInit, apiEndpoint, fetcher } = ctx;
 
   // We're fine using a ref here for the operationBody / fetchOptions data, since the
   // continuationId's value changing is what will determine whether we fetch or not
   const operationBodyRef = useRef(operationBody);
-  const fetchOptionsRef = useRef(fetchOptions);
 
-  const [loading, setIsLoading] = useState(
-    continuationOrData.__typename === "Continuation" && !cachedValue
-  );
+  useEffect(() => {
+    operationBodyRef.current = operationBody;
+  });
+
+  const [loading, setIsLoading] = useState(continuationId && !cachedValue);
   const [data, setData] = useState(
     cachedValue ? cachedValue.data ?? null : continuationOrData
   );
@@ -84,14 +77,13 @@ export function useContinuation<
     }
     const abortController = new AbortController();
     let unmounted = false;
-    fetcher(apiEndpoint, {
+    const reqInit: RequestInit = {
       signal: abortController.signal,
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       credentials: "include",
-      ...fetchOptionsRef.current,
       body: JSON.stringify({
         ...operationBodyRef.current,
         variables: {
@@ -99,7 +91,8 @@ export function useContinuation<
           continuationId,
         },
       }),
-    })
+    };
+    fetcher(apiEndpoint, formatRequestInit(reqInit))
       .then((res) => res.json())
       .then((d: FormattedExecutionResult) => {
         if (!unmounted) {
@@ -112,7 +105,11 @@ export function useContinuation<
           setIsLoading(false);
         }
       })
-      .catch(ignoreAbortError);
+      .catch((e) => {
+        if (!unmounted) {
+          ignoreAbortError(e);
+        }
+      });
 
     return () => {
       unmounted = true;
@@ -126,5 +123,5 @@ export function useContinuation<
     addResult,
     cachedValue,
   ]);
-  return { loading, data, errors } as ContinuationResult<C>;
+  return { loading, data, errors } as ContinuationResult<D>;
 }

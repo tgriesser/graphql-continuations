@@ -1,13 +1,11 @@
-import type {
-  ExecutionResult,
-  FormattedExecutionResult,
-  GraphQLResolveInfo,
-} from "graphql";
+import type { ExecutionResult, FormattedExecutionResult } from "graphql";
+import { EventEmitter } from "events";
 import {
   BaseAdapter,
   ContinuationID,
   ResolveContinuationArgs,
   StoreResultArgs,
+  Unsubscribe,
 } from "./BaseAdapter.js";
 import { ContinuationNotFoundError } from "../errorHandling.js";
 
@@ -59,21 +57,18 @@ export interface ContinuationRedisAdapterConfig<Context> {
   /**
    * Connection to subscribe to the completion of the continuation value
    */
-  clientSubscribe: MaybeCtxFn<
-    Context,
-    {
-      subscribe(nsp: string, callback: Callback<unknown>): Promise<unknown>;
-      unsubscribe(nsp: string, callback: Callback<unknown>): Promise<unknown>;
-      on(
-        evt: "message",
-        handler: (channel: string, message: string) => void
-      ): unknown;
-      off(
-        evt: "message",
-        handler: (channel: string, message: string) => void
-      ): unknown;
-    }
-  >;
+  clientSubscribe: {
+    subscribe(nsp: string, callback: Callback<unknown>): Promise<unknown>;
+    unsubscribe(nsp: string, callback: Callback<unknown>): Promise<unknown>;
+    on(
+      evt: "message",
+      handler: (channel: string, message: string) => void
+    ): unknown;
+    off(
+      evt: "message",
+      handler: (channel: string, message: string) => void
+    ): unknown;
+  };
   /**
    * If there's an unhandled IORedis error when subscribing/unsubscribing
    */
@@ -91,16 +86,35 @@ export interface ContinuationRedisAdapterConfig<Context> {
 }
 
 class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
+  #ee: EventEmitter;
   #expires: Required<Expires>;
 
   constructor(private config: ContinuationRedisAdapterConfig<Context>) {
     super();
+    this.#ee = new EventEmitter();
     this.#expires = {
       pendingFlag: config.expires?.pendingFlag ?? 60 * 10, // 10 min
       completedValue: config.expires?.completedValue ?? 60 * 10,
       retrievedValue: config.expires?.retrievedValue ?? 60, // 1 min
     };
+    config.clientSubscribe.on("message", this.onContinuationId);
   }
+
+  teardown() {
+    this.config.clientSubscribe.off("message", this.onContinuationId);
+  }
+
+  onContinuationId = (chan: string, msg: string) => {
+    if (chan.startsWith(`${PUB_SUB_NSP}:`)) {
+      this.#ee.emit(chan, msg);
+      this.#ee.removeAllListeners(chan);
+      this.config.clientSubscribe.unsubscribe(chan, (e) => {
+        if (e) {
+          this.onUnhandledError(e);
+        }
+      });
+    }
+  };
 
   onUnhandledError = (e: Error) => {
     if (this.config.onError) {
@@ -118,11 +132,7 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
    * Checks whether we've completed the continuation yet, utilized
    * when determining whether to recursively resolve the continuations
    */
-  async hasResult(
-    continuationId: ContinuationID,
-    ctx: Context,
-    info: GraphQLResolveInfo
-  ) {
+  async hasResult(continuationId: ContinuationID, ctx: Context) {
     return Boolean(await this.#client(ctx).exists(this.#key(continuationId)));
   }
 
@@ -143,17 +153,18 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
 
     promiseResult
       .then(async (result) => {
+        const serializedResult = this.serializeResult(result);
         await Promise.all([
           this.#client(ctx).del(this.#key(continuationId, ":pending")),
           this.#client(ctx).setex(
             this.#key(continuationId),
             this.#expires.retrievedValue,
-            this.serializeResult(result)
+            serializedResult
           ),
         ]);
-        await this.#client(ctx).publish(
+        this.#client(ctx).publish(
           `${PUB_SUB_NSP}:${continuationId}`,
-          "1"
+          serializedResult
         );
       })
       .catch(this.onUnhandledError);
@@ -176,7 +187,12 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
           this.#key(continuationId, ":pending")
         );
         if (isPending) {
-          await this.#subscribeAndWait(resolveResultArgs, resolve, reject);
+          this.#subscribeAndWait(resolveResultArgs, (err, val) => {
+            if (err) {
+              return reject(err);
+            }
+            resolve(val);
+          });
         } else {
           resolve(await this.#getFormattedResult(resolveResultArgs));
         }
@@ -193,13 +209,6 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     return this.config.client;
   }
 
-  #clientSubscribe(ctx: Context) {
-    if (typeof this.config.clientSubscribe === "function") {
-      return this.config.clientSubscribe(ctx);
-    }
-    return this.config.clientSubscribe;
-  }
-
   async #getFormattedResult(
     resolveResultArgs: ResolveContinuationArgs<{ continuationId: string }>
   ) {
@@ -214,36 +223,57 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
     return this.deserializeResult(result);
   }
 
-  async #subscribeAndWait(
+  #subscribeAndWait(
     resolveResultArgs: ResolveContinuationArgs<{ continuationId: string }>,
-    resolve: (value: FormattedExecutionResult) => void,
-    reject: (err: any) => void
+    cb: (err: Error | null, val: FormattedExecutionResult) => void
   ) {
+    let unsubscribed = false;
+    let completed = false;
     const [_source, { continuationId }, ctx] = resolveResultArgs;
-    const clientSubscribe = this.#clientSubscribe(ctx);
-    const onContinuationId = (chan: string) => {
-      if (chan === `${PUB_SUB_NSP}:${continuationId}`) {
-        clientSubscribe.off("message", onContinuationId);
-        clientSubscribe.unsubscribe(`${PUB_SUB_NSP}:${continuationId}`, (e) => {
-          if (e) {
-            this.onUnhandledError(e);
-          }
-        });
-        this.#getFormattedResult(resolveResultArgs).then(resolve, reject);
+    const clientSubscribe = this.config.clientSubscribe;
+    const client = this.#client(ctx);
+    const onComplete = (val: string) => {
+      if (!unsubscribed) {
+        client.expire(this.#key(continuationId), this.#expires.retrievedValue);
+        cb(null, this.deserializeResult(val));
+        completed = true;
       }
     };
+    this.#ee.once(`${PUB_SUB_NSP}:${continuationId}`, onComplete);
+
+    // Subscribe to the event
     clientSubscribe.subscribe(`${PUB_SUB_NSP}:${continuationId}`, (e) => {
       if (e) {
         this.onUnhandledError(e);
       }
     });
-    clientSubscribe.on("message", onContinuationId);
+
     // We're pretty sure at this point that we don't have a result,
     // but let's add one additional check to be sure we didn't hit
-    // some race condition and start awaiting forever
-    if (await this.#client(ctx).exists(this.#key(continuationId))) {
-      onContinuationId(`${PUB_SUB_NSP}:${continuationId}`);
-    }
+    // a race condition with the subscription and start awaiting forever
+    client
+      .get(this.#key(continuationId))
+      .then((val) => {
+        if (typeof val === "string" && !unsubscribed) {
+          this.onContinuationId(`${PUB_SUB_NSP}:${continuationId}`, val);
+        }
+      })
+      .catch((e) => this.onUnhandledError(e));
+
+    return () => {
+      unsubscribed = true;
+      if (!completed) {
+        this.config.clientSubscribe.unsubscribe(
+          `${PUB_SUB_NSP}:${continuationId}`,
+          (e) => {
+            if (e) {
+              this.onUnhandledError(e);
+            }
+          }
+        );
+        this.#ee.removeListener(`${PUB_SUB_NSP}:${continuationId}`, onComplete);
+      }
+    };
   }
 
   serializeResult(result: ExecutionResult) {
@@ -252,6 +282,35 @@ class ContinuationRedisAdapter<Context = any> extends BaseAdapter<Context> {
 
   deserializeResult(str: string): FormattedExecutionResult {
     return JSON.parse(str);
+  }
+
+  subscribeResults(
+    args: ResolveContinuationArgs<{ continuationIds: string[] }>,
+    onResult: (continuationId: string, val: unknown) => void
+  ): Unsubscribe {
+    let unsubscribed = false;
+    const [source, { continuationIds }, ctx, info] = args;
+    const unsubscribes = continuationIds.map((continuationId, idx) =>
+      this.#subscribeAndWait(
+        [source, { continuationId }, ctx, info],
+        (err, val) => {
+          if (!unsubscribed) {
+            if (err) {
+              // TODO: Propagate this correctly
+              this.onUnhandledError(err);
+              onResult(continuationId, null);
+            } else {
+              onResult(continuationId, val);
+            }
+            unsubscribes.splice(idx, 1);
+          }
+        }
+      )
+    );
+    return () => {
+      unsubscribed = true;
+      unsubscribes.map((u) => u());
+    };
   }
 }
 

@@ -172,12 +172,14 @@ describe("fixtureSchema", () => {
   });
 
   it("resolves immediately for node with an error", async () => {
+    const source = print(CONTINUATION_FOR_NODE);
     const result = (await graphql({
       schema,
-      source: print(CONTINUATION_FOR_NODE),
+      source,
       variableValues: {
         withError: true,
         waitMs: 200,
+        simulateDelayMax: 50,
       },
     })) as ExecutionResult<any, any>;
     expect(result.data?.viewer.continuation.remoteProfile.errorField).toEqual(

@@ -20,4 +20,19 @@ describe("addContinuationsToSchema", () => {
       printSchema(newSchema) + "\n"
     );
   });
+
+  it("adds continuation fields to the schema, with subscriptions", () => {
+    const newSchema = addContinuationsToSchema(testSchema, {
+      adapter: memoryAdapter(),
+      addSubscriptionField: true,
+    });
+
+    fs.writeFileSync(
+      path.join(
+        __dirname,
+        "fixtures/test-schema-addContinuationsToSchemaWithSubscription.graphql"
+      ),
+      printSchema(newSchema) + "\n"
+    );
+  });
 });

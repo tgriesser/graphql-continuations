@@ -3,9 +3,11 @@
   "exclude": [
     "tests",
     "vitest.config.ts",
+    "cypress.config.ts",
     "client",
     "example",
     "react",
+    "cypress",
     "cjs",
     "mjs"
   ],

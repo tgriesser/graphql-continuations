@@ -90,4 +90,15 @@ export interface ContinuationConfig<Context = any> {
    * determines the field we use to lookup the node's ID type
    */
   nodeIdField?: string;
+  /**
+   * Whether to add a Subscription type field to the schema to resolve
+   * continuations. Highly recommended, though it requires the server support
+   * subscriptions.
+   *
+   * See the examples with graphql-sse and graphql-ws in the Cypress tests
+   * for setting up subscriptions
+   *
+   * @default false
+   */
+  addSubscriptionField?: boolean;
 }

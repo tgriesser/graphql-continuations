@@ -76,12 +76,16 @@ export const CONTINUATION_FOR_NODE = gql`
       continuation(waitMs: $waitMs) {
         __typename
         ...ContinuationFrag
-        ...NodeFrag
+        ... on User {
+          remoteProfile(simulateDelayMax: 50) {
+            data
+            errorField @include(if: $withError)
+          }
+        }
       }
     }
   }
   ${CONTINUATION_FRAG}
-  ${NODE_FRAG}
 `;
 
 //

@@ -9,3 +9,5 @@ src/**/*.d.ts
 tests/**/*.js
 tests/**/*.d.ts
 react/**
+cypress/videos
+cypress/server/codegen

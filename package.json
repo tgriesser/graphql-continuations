@@ -4,14 +4,21 @@
   "description": "An alternative approach to @defer in resolving expensive GraphQL fields",
   "main": "./cjs/index.js",
   "scripts": {
+    "dev": "concurrently 'pnpm watch' 'pnpm dev:server'",
+    "dev:server": "cd cypress/server && pnpm dev",
     "clean": "rm -rf cjs && rm -rf mjs && rm -rf react && rm -rf {src,tests,client}/{**/*,*}.{d.ts,js}",
-    "build": "pnpm clean && pnpm build:main && pnpm build:client",
+    "build": "pnpm clean && pnpm build:main && pnpm build:client && pnpm build:spec",
     "build:main": "tsc -p tsconfig.lib.json && tsc -p tsconfig.lib.mjs.json",
     "build:client": "tsc -p tsconfig.client.json",
+    "build:spec": "spec-md ./spec/spec.md > ./docs/index.html",
+    "watch": "concurrently 'pnpm watch:main' 'pnpm watch:client' 'pnpm watch:spec'",
+    "watch:main": "tsc --watch -p tsconfig.lib.json & tsc --watch -p tsconfig.lib.mjs.json",
+    "watch:client": "tsc --watch -p tsconfig.client.json",
+    "watch:spec": "nodemon --exec \"spec-md > ./docs/index.html\" ./spec/spec.md",
     "test": "vitest",
+    "test:e2e": "cypress run",
     "prepublish": "pnpm build",
-    "coverage": "vitest run --coverage",
-    "watch": "nodemon --exec \"spec-md > ./docs/index.html\" ./spec/spec.md"
+    "coverage": "vitest run --coverage"
   },
   "exports": {
     ".": {
@@ -34,7 +41,8 @@
   ],
   "keywords": [
     "graphql",
-    "defer"
+    "defer",
+    "continuation"
   ],
   "author": "Tim Griesser",
   "license": "MIT",
@@ -42,11 +50,15 @@
     "uuid": "^9.0.0"
   },
   "peerDependencies": {
+    "@types/node": "*",
     "graphql": "*"
   },
   "devDependencies": {
+    "concurrently": "^7.6.0",
+    "@types/node": "^18.14.2",
     "@types/react": "^18.0.26",
     "@types/uuid": "^9.0.0",
+    "cypress": "^12.7.0",
     "graphql": "^16.6.0",
     "graphql-tag": "^2.12.6",
     "ioredis": "^5.2.4",

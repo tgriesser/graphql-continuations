@@ -1,17 +1,27 @@
 import { createContext, useReducer } from "react";
-import type { ContinuationErrors } from "./useContinuation";
+import type {
+  ContinuationCacheProviderProps,
+  ContinuationErrors,
+  FormatRequestInit,
+  SubscriptionClient,
+} from "./common";
 
+type State = Record<string, ActionPayload["value"]>;
 type ActionPayload = {
   continuationId: string;
-  value: { data?: unknown; errors?: ContinuationErrors | null };
+  value: {
+    data?: unknown;
+    errors?: ContinuationErrors | null;
+  };
 };
-type State = Record<string, ActionPayload["value"]>;
 
 interface ContinuationCacheShape {
   state: State;
   fetcher: typeof fetch;
   apiEndpoint: string;
   addResult: (obj: ActionPayload) => void;
+  formatRequestInit: FormatRequestInit;
+  subscriptionClient?: SubscriptionClient;
 }
 
 export const ContinuationCache = createContext<ContinuationCacheShape | null>(
@@ -19,11 +29,7 @@ export const ContinuationCache = createContext<ContinuationCacheShape | null>(
 );
 
 export const ContinuationCacheProvider: React.FC<
-  React.PropsWithChildren<{
-    apiEndpoint?: string;
-    initialCache?: Record<string, any>;
-    fetcher?: typeof fetch;
-  }>
+  React.PropsWithChildren<ContinuationCacheProviderProps>
 > = (props) => {
   const [state, addResult] = useReducer(
     (state: State, action: ActionPayload): State => {
@@ -41,6 +47,8 @@ export const ContinuationCacheProvider: React.FC<
         addResult,
         fetcher: props.fetcher ?? fetch,
         apiEndpoint: props.apiEndpoint ?? "/graphql",
+        subscriptionClient: props.subscriptionClient,
+        formatRequestInit: props.formatRequestInit ?? ((i: RequestInit) => i),
       }}
     >
       {props.children}

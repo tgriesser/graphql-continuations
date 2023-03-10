@@ -10,6 +10,8 @@ export type StoreResultArgs<Context = any> = [
   ...rest: ResolveContinuationArgs<{ waitMs: number }, Context>
 ];
 
+export type Unsubscribe = () => void;
+
 export type ResolveContinuationArgs<Args, Context = any> = [
   unknown,
   Args,
@@ -31,8 +33,7 @@ export abstract class BaseAdapter<Context = any> {
    */
   abstract hasResult(
     continuationId: ContinuationID,
-    ctx: Context,
-    info: GraphQLResolveInfo
+    ctx: Context
   ): Promise<boolean>;
 
   /**
@@ -45,7 +46,7 @@ export abstract class BaseAdapter<Context = any> {
 
   /**
    * If the result is a string, we run it through the
-   * deserializeResult function, otherwise we just
+   * deserializeResult function, otherwise we just resolve it
    */
   abstract resolveResult(
     ...args: ResolveContinuationArgs<
@@ -53,4 +54,13 @@ export abstract class BaseAdapter<Context = any> {
       Context
     >
   ): Promise<ExecutionResult | FormattedExecutionResult>;
+
+  /**
+   * Subscribes to the result of various continuationIds,
+   * invoking onResult when each becomes available
+   */
+  abstract subscribeResults(
+    args: ResolveContinuationArgs<{ continuationIds: string[] }>,
+    onResult: (continuationId: string, val: unknown) => void
+  ): Unsubscribe;
 }

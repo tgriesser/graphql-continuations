@@ -1,9 +1,10 @@
-import type { GraphQLResolveInfo, execute } from "graphql";
+import type { execute } from "graphql";
 import {
   BaseAdapter,
   ContinuationID,
   ResolveContinuationArgs,
   StoreResultArgs,
+  Unsubscribe,
 } from "./BaseAdapter.js";
 import { ContinuationNotFoundError } from "../errorHandling.js";
 
@@ -11,11 +12,7 @@ export class MemoryAdapter<Context = any> extends BaseAdapter {
   inMemoryCompletions = new Map<string, ReturnType<typeof execute>>();
   inFlightCompletions = new Map<string, Promise<ReturnType<typeof execute>>>();
 
-  async hasResult(
-    continuationId: ContinuationID,
-    ctx: Context,
-    info: GraphQLResolveInfo
-  ) {
+  async hasResult(continuationId: ContinuationID, ctx: Context) {
     return this.inMemoryCompletions.has(continuationId);
   }
 
@@ -49,6 +46,26 @@ export class MemoryAdapter<Context = any> extends BaseAdapter {
       }, 60 * 10);
       return data;
     });
+  }
+
+  subscribeResults(
+    args: ResolveContinuationArgs<{ continuationIds: string[] }>,
+    onResult: (continuationId: string, val: unknown) => void
+  ): Unsubscribe {
+    let unsubscribed = false;
+    const [source, { continuationIds }, ctx, info] = args;
+    continuationIds.map((id) => {
+      this.resolveResult(source, { continuationId: id }, ctx, info).then(
+        (data) => {
+          if (!unsubscribed) {
+            onResult(id, data);
+          }
+        }
+      );
+    });
+    return () => {
+      unsubscribed = true;
+    };
   }
 }
 

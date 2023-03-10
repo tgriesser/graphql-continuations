@@ -53,6 +53,27 @@ type Continuation {
   continuationId: String!
 }
 
+"""
+Container type for the continuation being resolved, including the continuationId
+so we know which continuation is resolved when the value is sent
+"""
+type ContinuationResolvedEvent {
+  continuationId: String!
+  value: AllContinuationTypes
+}
+
+type Subscription {
+  """
+  Subscription, emitting an event when the continuation identifier is resolved
+  """
+  subscribeContinuation(continuationId: String!): AllContinuationTypes
+
+  """
+  Subscription, emitting an event each time one of the continuation identifiers are resolved
+  """
+  subscribeContinuationList(continuationIds: [String!]!): ContinuationResolvedEvent
+}
+
 """Union returned for the continuation field on the User type"""
 union UserContinuation = Continuation | User
 
