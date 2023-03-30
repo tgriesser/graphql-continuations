@@ -1,6 +1,21 @@
 import type { GraphQLResolveInfo, execute } from "graphql";
 import type { BaseAdapter } from "./adapters/BaseAdapter.js";
 
+export interface BaseExpires {
+  /**
+   * How long we keep a value in memory, after it has been
+   * completed
+   * @default 10 minutes
+   */
+  completedValue?: number;
+  /**
+   * How long we keep a value in memory, after it has been
+   * retrieved
+   * @default 1 minute
+   */
+  retrievedValue?: number;
+}
+
 export interface ContinuationFieldOptions<Context = any> {
   /**
    * Configure the waitMs for this type's continuation field

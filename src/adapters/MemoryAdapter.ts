@@ -7,10 +7,27 @@ import {
   Unsubscribe,
 } from "./BaseAdapter.js";
 import { ContinuationNotFoundError } from "../errorHandling.js";
+import type { BaseExpires } from "../types.js";
+
+export interface MemoryAdapterConfig {
+  /**
+   * Sets the "expires" times for the payloads set in redis
+   */
+  expires?: BaseExpires;
+}
 
 export class MemoryAdapter<Context = any> extends BaseAdapter {
   inMemoryCompletions = new Map<string, ReturnType<typeof execute>>();
   inFlightCompletions = new Map<string, Promise<ReturnType<typeof execute>>>();
+  #expires: Required<BaseExpires>;
+
+  constructor(config: MemoryAdapterConfig) {
+    super();
+    this.#expires = {
+      completedValue: config.expires?.completedValue ?? 60 * 10,
+      retrievedValue: config.expires?.retrievedValue ?? 60, // 1 min
+    };
+  }
 
   async hasResult(continuationId: ContinuationID, ctx: Context) {
     return this.inMemoryCompletions.has(continuationId);
@@ -23,6 +40,9 @@ export class MemoryAdapter<Context = any> extends BaseAdapter {
       args[0].then((result) => {
         this.inMemoryCompletions.set(key, result);
         this.inFlightCompletions.delete(key);
+        setTimeout(() => {
+          this.inMemoryCompletions.delete(key);
+        }, this.#expires.completedValue);
         return result;
       })
     );
@@ -43,7 +63,7 @@ export class MemoryAdapter<Context = any> extends BaseAdapter {
       // Deletes the data on the server after 10 seconds
       setTimeout(() => {
         this.inMemoryCompletions.delete(continuationId);
-      }, 60 * 10);
+      }, this.#expires.retrievedValue);
       return data;
     });
   }
@@ -69,6 +89,6 @@ export class MemoryAdapter<Context = any> extends BaseAdapter {
   }
 }
 
-export function memoryAdapter<Context>() {
-  return new MemoryAdapter<Context>();
+export function memoryAdapter<Context>(config: MemoryAdapterConfig = {}) {
+  return new MemoryAdapter<Context>(config);
 }

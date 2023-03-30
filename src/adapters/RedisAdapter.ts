@@ -8,6 +8,7 @@ import {
   Unsubscribe,
 } from "./BaseAdapter.js";
 import { ContinuationNotFoundError } from "../errorHandling.js";
+import type { BaseExpires } from "../types.js";
 
 const PUB_SUB_NSP = "gqlc-pub";
 
@@ -15,24 +16,12 @@ type Callback<T = any> = (err?: Error | null, result?: T) => void;
 
 export type MaybeCtxFn<Context, T> = ((ctx: Context) => T) | T;
 
-interface Expires {
+export interface Expires extends BaseExpires {
   /**
    * How long we keep a "pending" flag in memory, in seconds
    * @default 10 minutes
    */
   pendingFlag?: number;
-  /**
-   * How long we keep a value in memory, after it has been
-   * completed
-   * @default 10 minutes
-   */
-  completedValue?: number;
-  /**
-   * How long we keep a value in memory, after it has been
-   * retrieved
-   * @default 1 minute
-   */
-  retrievedValue?: number;
 }
 
 export interface ContinuationRedisAdapterConfig<Context> {
